@@ -5,9 +5,9 @@
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
-size_t N = 0;
-double dt = 0;
+// Set the timestep length and duration
+size_t N = 50;
+double dt = 0.05;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -47,14 +47,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
-  // TODO: Set the number of model variables (includes both states and inputs).
+  // Set the number of model variables (includes both states and inputs).
   // For example: If the state is a 4 element vector, the actuators is a 2
-  // element vector and there are 10 timesteps. The number of variables is:
-  //
-  // 4 * 10 + 2 * 9
-  size_t n_vars = 0;
-  // TODO: Set the number of constraints
-  size_t n_constraints = 0;
+  // element vector and there are 10 timesteps. The number of variables is: 4 * 10 + 2 * 9
+
+  int dim_state_vector = 4; // posX, posyY, orientation, velocity 
+  int dim_actuator_vector = 2: // steering angle, acceleration
+  int n_timesteps = 24; 
+  size_t n_vars = (dim_state_vector * n_timesteps) + (dim_actuator_vector * (dim_actuator_vector - 1)) ;
+  
+  // Set the number of constraints
+  size_t n_constraints = 2; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
