@@ -29,10 +29,10 @@ class FG_eval {
 
 	typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 	void operator()(ADvector& fg, const ADvector& vars) {
-	// TODO: implement MPC
-	// fg a vector of constraints, x is a vector of constraints.
-	// NOTE: You'll probably go back and forth between this function and
-	// the Solver function below.
+		// TODO: implement MPC
+		// fg a vector of constraints, x is a vector of constraints.
+		// NOTE: You'll probably go back and forth between this function and
+		// the Solver function below.
 	}
 };
 
@@ -47,12 +47,19 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	size_t i;
 	typedef CPPAD_TESTVECTOR(double) Dvector;
 
+	// Extract value 
+	double x = state[0]; // posX
+	double y = state[1]; // posY
+	double psi = state[2]; // orientation 
+	double v = state[3]; // velocity
+	double delta = coeffs[0]; // steering angle
+	double a = coeffs[1]; // acceleration
+
 	// Set the number of model variables (includes both states and inputs).
 	// For example: If the state is a 4 element vector, the actuators is a 2
 	// element vector and there are 10 timesteps. The number of variables is: 4 * 10 + 2 * 9
-
 	int dim_state_vector = 4; // posX, posyY, orientation, velocity 
-	int dim_actuator_vector = 2: // steering angle, acceleration
+	int dim_actuator_vector = 2; // steering angle, acceleration
 	int n_timesteps = 24; 
 	size_t n_vars = (dim_state_vector * n_timesteps) + (dim_actuator_vector * (dim_actuator_vector - 1)) ;
 
