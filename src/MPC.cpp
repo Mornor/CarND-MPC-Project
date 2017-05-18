@@ -141,8 +141,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	double y = state[1]; // posY
 	double psi = state[2]; // orientation 
 	double v = state[3]; // velocity
-	double delta = coeffs[0]; // steering angle
-	double a = coeffs[1]; // acceleration
+	double cte = coeffs[4]; // cross track error cte
+	double epsi = coeffs[5]; // steering angle error epsi
 
 	// Set the number of model variables (includes both states and inputs).
 	// For example: If the state is a 4 element vector, the actuators is a 2
