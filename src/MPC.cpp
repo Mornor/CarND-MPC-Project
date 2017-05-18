@@ -149,11 +149,14 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	// element vector and there are 10 timesteps. The number of variables is: 4 * 10 + 2 * 9
 	int dim_state_vector = 4; // posX, posyY, orientation, velocity 
 	int dim_actuator_vector = 2; // steering angle, acceleration
-	int n_timesteps = 24; 
-	size_t n_vars = (dim_state_vector * n_timesteps) + (dim_actuator_vector * (dim_actuator_vector - 1)) ;
+	int n_timesteps = 6; 
+
+	// number of independent variables
+  	// N timesteps == N - 1 actuations
+  	size_t n_vars = N * n_timesteps + (N - 1) * dim_actuator_vector;
 
 	// Set the number of constraints
-	size_t n_constraints = 2; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
+	size_t n_constraints = N * n_timesteps; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
 
 	// Initial value of the independent variables.
 	// SHOULD BE 0 besides initial state.
