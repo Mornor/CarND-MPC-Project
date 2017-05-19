@@ -89,6 +89,12 @@ int main() {
 					double psi = j[1]["psi"];
 					double v = j[1]["speed"];
 
+					// The polynomial is fitted to a curve so a polynomial with degree 3 should be enough (too much will overload)
+					auto coeffs = polyfit(ptsxv, ptsyv, 3);
+
+					// The cross track error is calculated by evaluating at polynomial at x, f(x) and subtracting y.
+					double cte = polyeval(coeffs, px) - py;
+
 					/*
 					* TODO: Calculate steeering angle and throttle using MPC.
 					*
