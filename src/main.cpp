@@ -89,11 +89,22 @@ int main() {
 					double psi = j[1]["psi"];
 					double v = j[1]["speed"];
 
+					Eigen::VectorXd ptsxv = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
+					Eigen::VectorXd ptsyv = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
+
 					// The polynomial is fitted to a curve so a polynomial with degree 3 should be enough (too much will overload)
 					auto coeffs = polyfit(ptsxv, ptsyv, 3);
 
 					// The cross track error is calculated by evaluating at polynomial at x, f(x) and subtracting y.
 					double cte = polyeval(coeffs, px) - py;
+
+					// Convert to vehicle space
+					for (int i = 0; i < ptsxv.size(); i++) {
+						double x = ptsxv[i];
+						double y = ptsyv[i];
+						ptsxv[i] = x * cos(psi) - y * sin(psi) + px;
+						ptsyv[i] = x * sin(psi) + y * cos(psi) + py;
+          			}
 
 					/*
 					* TODO: Calculate steeering angle and throttle using MPC.
