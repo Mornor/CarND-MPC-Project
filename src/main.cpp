@@ -104,10 +104,10 @@ int main() {
 					for (int i = 0; i < ptsxv.size(); i++) {
 						double x = ptsxv[i];
 						double y = ptsyv[i];
-						ptsxv[i] = x * cos(psi) - y * sin(psi) + px;
-						ptsyv[i] = x * sin(psi) + y * cos(psi) + py;
-						//ptsxv[i] = (x - px) * cos(psi) + (y - py) * sin(psi);
-						//ptsyv[i] = (y - py) * cos(psi) - (x - px) * sin(psi);
+						//ptsxv[i] = x * cos(psi) - y * sin(psi) + px;
+						//ptsyv[i] = x * sin(psi) + y * cos(psi) + py;
+						ptsxv[i] = (x - px) * cos(psi) + (y - py) * sin(psi);
+						ptsyv[i] = (y - py) * cos(psi) - (x - px) * sin(psi);
           			}
 
 					// create current state vector and solve
@@ -139,6 +139,14 @@ int main() {
 					// MPC predicted trajectory
 					vector<double> mpc_x_vals;
 					vector<double> mpc_y_vals;
+
+					auto N = (result.size()-2)/2;
+					for (int i=3 ;i < N+2; i++) {
+						double temp_x = result[i];
+						double temp_y = result[i+N];
+						mpc_x_vals.push_back(temp_x);
+						mpc_y_vals.push_back(temp_y);
+					}
 
 					//.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
 					// the points in the simulator are connected by a Yellow line
