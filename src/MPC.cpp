@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // Set the timestep length and duration
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.15;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -54,21 +54,21 @@ class FG_eval {
 
 		// The part of the cost based on the reference state.
 		for (int i = 0; i < N; i++) {
-			fg[0] += CppAD::pow(vars[cte_start + i] - ref_cte, 2);
-			fg[0] += CppAD::pow(vars[epsi_start + i] - ref_epsi, 2);
+			fg[0] += 1400 * CppAD::pow(vars[cte_start + i] - ref_cte, 2);
+			fg[0] += 1400 * CppAD::pow(vars[epsi_start + i] - ref_epsi, 2);
 			fg[0] += CppAD::pow(vars[v_start + i] - ref_v, 2);
 		}
 
 		// Minimize the use of actuators.
 		for (int i = 0; i < N - 1; i++) {
-			fg[0] += CppAD::pow(vars[delta_start + i], 2);
-			fg[0] += CppAD::pow(vars[a_start + i], 2);
+			fg[0] += 20 * CppAD::pow(vars[delta_start + i], 2);
+			fg[0] += 40 * CppAD::pow(vars[a_start + i], 2);
 		}
 
 		// Minimize the value gap between sequential actuations.
 		for (int i = 0; i < N - 2; i++) {
-			fg[0] += CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
-			fg[0] += CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+			fg[0] += 200 * CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+			fg[0] += 100 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     	}
 
     	// Setup the model constraints
@@ -103,9 +103,9 @@ class FG_eval {
 			// Only consider the actuation at time t.
 			AD<double> delta0 = vars[delta_start + i];
 			AD<double> a0 = vars[a_start + i];
-
-			AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-			AD<double> psides0 = CppAD::atan(coeffs[1]);
+			
+			AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * x0 * x0 + coeffs[3] * x0 * x0 * x0;
+			AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * x0 * x0);
 
 			// Here's `x` to get you started.
 			// The idea here is to constraint this value to be 0.
@@ -120,8 +120,8 @@ class FG_eval {
 			fg[2 + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
 			fg[2 + psi_start + i] = psi1 - (psi0 + v0 * delta0 / Lf * dt);
 			fg[2 + v_start + i] = v1 - (v0 + a0 * dt);
-			fg[2 + cte_start + i] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-			fg[2 + epsi_start + i] = epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+			fg[2 + cte_start + i] = cte1 - ((f0 - y0) + v0 * CppAD::sin(epsi0) * dt);
+			fg[2 + epsi_start + i] = epsi1 - (psi0 - psides0 + v0 / Lf * delta0 * dt);
 		}
 	}
 };
@@ -142,8 +142,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	double y = state[1]; // posY
 	double psi = state[2]; // orientation 
 	double v = state[3]; // velocity
-	double cte = coeffs[4]; // cross track error cte
-	double epsi = coeffs[5]; // steering angle error epsi
+	double cte = state[4]; // cross track error cte
+	double epsi = state[5]; // steering angle error epsi
 
 	// Set the number of model variables (includes both states and inputs).
 	// For example: If the state is a 4 element vector, the actuators is a 2
@@ -158,6 +158,11 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
 	// Set the number of constraints
 	size_t n_constraints = N * n_timesteps; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
+
+	//size_t n_vars = N * 6 + (N - 1) * 2;
+	// the number of constraints
+	//size_t n_constraints = N * 6;
+
 
 	// Initial value of the independent variables.
 	// SHOULD BE 0 besides initial state.
@@ -190,6 +195,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	for (int i = delta_start; i < a_start; i++) {
 		vars_lowerbound[i] = -0.436332;
 		vars_upperbound[i] = 0.436332;
+	}
+
+	// Acceleration/braking
+	for (int i = a_start; i < n_vars; i++) {
+		vars_lowerbound[i] = -1.0;
+		vars_upperbound[i] = 1.0;
 	}
 
 	// Lower and upper limits for constraints
@@ -250,7 +261,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
 	// Cost
 	auto cost = solution.obj_value;
-	std::cout << "Cost " << cost << std::endl;
 	
 	return {
 		solution.x[x_start + 1],   solution.x[y_start + 1],
