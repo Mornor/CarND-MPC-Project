@@ -63,6 +63,15 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals, int order)
 	return result;
 }
 
+// (px, py): Car pos in map coordinates
+// (mx, my): Point position in map coordinates
+// return (car_x, car_y): point's coordinates in car system
+vector<double> map_to_car_coordinates(double psi, double px, double py, double mx, double my ){
+  double car_x = (mx - px) * cos(psi) + (my - py) * sin(psi);
+  double car_y = (my - py) * cos(psi) - (mx - px) * sin(psi);
+  return {car_x, car_y};
+}
+
 int main() {
 	uWS::Hub h;
 
@@ -88,33 +97,40 @@ int main() {
 					double py = j[1]["y"];
 					double psi = j[1]["psi"];
 					double v = j[1]["speed"];
+ 					
+ 					/*
+					* Calculate steeering angle and throttle using MPC.
+					*
+					* Both are in between [-1, 1].
+					*
+					*/
+					double* ptr_x = &ptsx[0];
+					double* ptr_y = &ptsy[0];
+					Eigen::Map<Eigen::VectorXd> ptsx_ev(ptr_x, ptsx.size());
+					Eigen::Map<Eigen::VectorXd> ptsy_ev(ptr_y, ptsy.size());
 
-					Eigen::VectorXd ptsxv = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
-					Eigen::VectorXd ptsyv = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
-
-					// The polynomial is fitted to a curve so a polynomial with degree 3 should be enough (too much will overload)
-					auto coeffs = polyfit(ptsxv, ptsyv, 3);
-
-					// The cross track error is calculated by evaluating at polynomial at x, f(x) and subtracting y.
-					double cte = polyeval(coeffs, px) - py;
-
-					double epsi = -atan(coeffs[1]); 
+					Eigen::VectorXd ptsx_car = Eigen::VectorXd(ptsx.size());
+					Eigen::VectorXd ptsy_car = Eigen::VectorXd(ptsx.size());
 
 					// Convert from map coordinates to vehicle coordinates
-					for (int i = 0; i < ptsxv.size(); i++) {
-						double x = ptsxv[i];
-						double y = ptsyv[i];
-						//ptsxv[i] = x * cos(psi) - y * sin(psi) + px;
-						//ptsyv[i] = x * sin(psi) + y * cos(psi) + py;
-						ptsxv[i] = (x - px) * cos(psi) + (y - py) * sin(psi);
-						ptsyv[i] = (y - py) * cos(psi) - (x - px) * sin(psi);
-          			}
+					for (int i = 0; i < ptsx.size(); i++){
+					  auto tmp = map_to_car_coordinates(psi, px,py, ptsx[i], ptsy[i]);
+					  ptsx_car[i] = tmp[0];
+					  ptsy_car[i] = tmp[1];
 
-					// create current state vector and solve
+					}
+
+					auto coeffs = polyfit(ptsx_car, ptsy_car, 3);
+
+					double cte = polyeval(coeffs, 0);
+					double epsi = -atan(coeffs[1]);
+
+					// Create current state vector and solve
 					Eigen::VectorXd state(6);
-					state << px, py, psi, v, cte, epsi;
-					auto result = mpc.Solve(state, coeffs);
+					state << 0, 0, 0, v, cte, epsi;
 
+					auto result = mpc.Solve(state, coeffs);
+					
 					// Compute steering and angle value
 					double steer_value = -result[0];
 					double throttle_value = result[1];
@@ -123,40 +139,35 @@ int main() {
 					msgJson["steering_angle"] = steer_value;
 					msgJson["throttle"] = throttle_value;
 
-					// Waypoints/reference line
-					std::vector<double> wpsx;
-					std::vector<double> wpsy;
-					wpsx.resize(ptsxv.size());
-					wpsy.resize(ptsyv.size());
-					Eigen::VectorXd::Map(&wpsx[0], ptsxv.size()) = ptsxv;
-					Eigen::VectorXd::Map(&wpsy[0], ptsyv.size()) = ptsyv;
-
-					for (int i=0; i < ptsx.size(); i++){
-						wpsx.push_back(ptsxv[0]);
-						wpsy.push_back(ptsyv[1]);
-					}
-
 					// MPC predicted trajectory
 					vector<double> mpc_x_vals;
 					vector<double> mpc_y_vals;
 
-					auto N = (result.size()-2)/2;
-					for (int i=3 ;i < N+2; i++) {
-						double temp_x = result[i];
-						double temp_y = result[i+N];
-						mpc_x_vals.push_back(temp_x);
-						mpc_y_vals.push_back(temp_y);
+					// Waypoints line
+					vector<double> wpsx;
+					vector<double> wpsy;
+
+					for (int i = 0; i < ptsx.size(); i++){
+						auto temp_car = map_to_car_coordinates(psi, px, py, ptsx[i], ptsy[i]);
+						wpsx.push_back(temp_car[0]);
+						wpsy.push_back(temp_car[1]);
+					}
+
+					auto N = (result.size() - 2) / 2;
+					for (int i = 3; i < N+2; i++) {
+						double x = result[i];
+						double y = result[i+N];
+						mpc_x_vals.push_back(x);
+						mpc_y_vals.push_back(y);
 					}
 
 					//.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
 					// the points in the simulator are connected by a Yellow line
-					msgJson["next_x"] = wpsx;
-					msgJson["next_y"] = wpsy;	
-
-					//.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
-					// the points in the simulator are connected by a Green line
 					msgJson["mpc_x"] = mpc_x_vals;
 					msgJson["mpc_y"] = mpc_y_vals;
+
+					msgJson["next_x"] = wpsx;
+					msgJson["next_y"] = wpsy;
 
 
 					auto msg = "42[\"steer\"," + msgJson.dump() + "]";
@@ -177,9 +188,9 @@ int main() {
 				// Manual driving
 				std::string msg = "42[\"manual\",{}]";
 				ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  		}
-		}
-	});
+			}
+	}
+});
 
 	// We don't need this since we're not using HTTP but if it's removed the
 	// program
