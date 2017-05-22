@@ -157,11 +157,11 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   	size_t n_vars = N * n_timesteps + (N - 1) * dim_actuator_vector;
 
 	// Set the number of constraints
-	size_t n_constraints = N * n_timesteps; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
+	//size_t n_constraints = N * n_timesteps; // constraint on steering angle (say [-30;30]) and acceleration (say [-1; 30]) )
 
 	//size_t n_vars = N * 6 + (N - 1) * 2;
 	// the number of constraints
-	//size_t n_constraints = N * 6;
+	size_t n_constraints = N * 6;
 
 
 	// Initial value of the independent variables.
@@ -262,10 +262,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 	// Cost
 	auto cost = solution.obj_value;
 	
-	return {
-		solution.x[x_start + 1],   solution.x[y_start + 1],
-		solution.x[psi_start + 1], solution.x[v_start + 1],
-		solution.x[cte_start + 1], solution.x[epsi_start + 1],
-		solution.x[delta_start],   solution.x[a_start]
-	};
+	vector<double> result;
+	result.push_back(solution.x[delta_start]);
+	result.push_back(solution.x[a_start]);
+  
+	for(int i=x_start;i<y_start;i++){
+		result.push_back(solution.x[i]);
+	}
+
+	for(int i=y_start;i<psi_start;i++){
+		result.push_back(solution.x[i]);
+	}
+
+    return result;
 }
