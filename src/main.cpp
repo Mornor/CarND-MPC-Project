@@ -98,26 +98,59 @@ int main() {
 					// The cross track error is calculated by evaluating at polynomial at x, f(x) and subtracting y.
 					double cte = polyeval(coeffs, px) - py;
 
-					// Convert to vehicle space
+					double epsi = -atan(coeffs[1]); 
+
+					// Convert from map coordinates to vehicle coordinates
 					for (int i = 0; i < ptsxv.size(); i++) {
 						double x = ptsxv[i];
 						double y = ptsyv[i];
 						ptsxv[i] = x * cos(psi) - y * sin(psi) + px;
 						ptsyv[i] = x * sin(psi) + y * cos(psi) + py;
+						//ptsxv[i] = (x - px) * cos(psi) + (y - py) * sin(psi);
+						//ptsyv[i] = (y - py) * cos(psi) - (x - px) * sin(psi);
           			}
 
-					/*
-					* TODO: Calculate steeering angle and throttle using MPC.
-					*
-					* Both are in between [-1, 1].
-					*
-					*/
-					double steer_value;
-					double throttle_value;
+					// create current state vector and solve
+					Eigen::VectorXd state(6);
+					state << px, py, psi, v, cte, epsi;
+					auto result = mpc.Solve(state, coeffs);
+
+					// Compute steering and angle value
+					double steer_value = -result[0];
+					double throttle_value = result[1];
 
 					json msgJson;
 					msgJson["steering_angle"] = steer_value;
 					msgJson["throttle"] = throttle_value;
+
+					// Waypoints/reference line
+					std::vector<double> wpsx;
+					std::vector<double> wpsy;
+					wpsx.resize(ptsxv.size());
+					wpsy.resize(ptsyv.size());
+					Eigen::VectorXd::Map(&wpsx[0], ptsxv.size()) = ptsxv;
+					Eigen::VectorXd::Map(&wpsy[0], ptsyv.size()) = ptsyv;
+
+					for (int i=0; i < ptsx.size(); i++){
+						wpsx.push_back(ptsxv[0]);
+						wpsy.push_back(ptsyv[1]);
+					}
+
+					// MPC predicted trajectory
+					vector<double> mpc_x_vals;
+					vector<double> mpc_y_vals;
+
+					//.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
+					// the points in the simulator are connected by a Yellow line
+					msgJson["next_x"] = wpsx;
+					msgJson["next_y"] = wpsy;	
+
+					//.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
+					// the points in the simulator are connected by a Green line
+					msgJson["mpc_x"] = mpc_x_vals;
+					msgJson["mpc_y"] = mpc_y_vals;
+
+
 					auto msg = "42[\"steer\"," + msgJson.dump() + "]";
 					std::cout << msg << std::endl;
 					// Latency
