@@ -16,7 +16,7 @@ And the actuators are:
 * delta - Steering angle (radians)
 * a - acceleration
 
-2. Update step 
+2. Update step <br>
 The update step can be found [here](https://github.com/Mornor/CarND-MPC-Project/blob/master/src/MPC.cpp#L112) in my code. 
 This update step is used to compute the next state of the car, regarding the current state. `Lf` is the distance between the front of vehicle and its center of gravity. This constant was kindly given by Udacity. 
 
